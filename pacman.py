@@ -74,6 +74,7 @@ lives = 3
 game_over = False
 game_won = False
 
+blinky_path = []
 
 class Ghost:
     def __init__(self, x_coord, y_coord, target, speed, img, direct, dead, box, id):
@@ -178,6 +179,62 @@ class Ghost:
             self.in_box = False
         
         return self.turns, self.in_box
+
+    def blinky_dfs(self):
+        # r,l,u,d
+        visited = set()
+        came_from = {}
+        stack = [(self.x_pos, self.y_pos, self.direction)]
+        path = []
+    
+        while stack:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+            
+            current = stack.pop()
+            print(current)
+            
+            if ((self.target[0] - 5 <= current[0] <= self.target[0] + 5) and 
+                (self.target[1] - 5 <= current[1] <= self.target[1] + 5)):
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                return path
+                
+            if current not in visited:
+                visited.add(current)
+                
+                self.x_pos = current[0]
+                self.y_pos = current[1]
+                self.center_x = self.x_pos + 22
+                self.center_y = self.y_pos + 22
+                self.direction = current[2]
+                self.turns, self.in_box = self.check_collisions()
+                
+                for i, turn in enumerate(self.turns):
+                    x = self.x_pos
+                    y = self.y_pos
+                    if turn:
+                        if i == 0:
+                            x = x  + self.speed
+                            self.direction = 0
+                        elif i == 1:
+                            x = x - self.speed
+                            self.direction = 1
+                        elif i == 2:
+                            y = y - self.speed
+                            self.direction = 2
+                        else:
+                            y = y + self.speed
+                            self.direction = 3
+                    if self.x_pos >= 0 and self.x_pos < 900:
+                        node = (x, y, self.direction)
+                        print(node)
+                        if node not in visited:
+                            stack.append(node)
+                            came_from[node] = current
+        return []
 
     def move_clyde(self):
         # r, l, u, d
@@ -707,7 +764,7 @@ class Ghost:
             
         return self.x_pos, self.y_pos, self.direction 
             
-    
+
 def draw_misc():
     score_text = font.render(f'Score: {score}', True,'white')
     screen.blit(score_text, (10, 920))
@@ -929,6 +986,9 @@ def get_targets(blink_x, blink_y, ink_x, ink_y, pink_x, pink_y, clyd_x, clyd_y):
     
     return [blink_target, ink_target, pink_target, clyde_target]
 
+blinky = Ghost(blinky_x, blinky_y, targets[0], ghost_speed[0], blinky_img, blinky_direction, blinky_dead, blinky_box, 0)
+blinky_path = blinky.blinky_dfs()
+
 run = True
 while run:
     timer.tick(fps)
@@ -945,7 +1005,7 @@ while run:
         power_counter = 0
         powerup = False
         eaten_ghost = [False] * 4
-    if startup_counter < 180 and not game_over and not game_won:
+    if startup_counter < 10 and not game_over and not game_won:
         moving = False
         startup_counter += 1
     else:
@@ -987,7 +1047,11 @@ while run:
     
     draw_player()
     
-    blinky = Ghost(blinky_x, blinky_y, targets[0], ghost_speed[0], blinky_img, blinky_direction, blinky_dead, blinky_box, 0)
+    
+    if len(blinky_path) != 0:
+        node = blinky_path.pop()
+        print('Di ',node)
+        blinky = Ghost(node[0], node[1], targets[0], ghost_speed[0], blinky_img, node[2], blinky_dead, blinky_box, 0)
     
     inky = Ghost(inky_x, inky_y, targets[1], ghost_speed[1], inky_img, inky_direction, inky_dead, inky_box, 1)
     
@@ -1000,24 +1064,24 @@ while run:
     
     #pygame.draw.circle(screen, 'white', (center_x, center_y), 2)
     turns_allowed = check_position(center_x, center_y)
-    if moving:
-        player_x, player_y = move_player(player_x, player_y)
-        if not blinky_dead and not blinky.in_box:
-            blinky_x, blinky_y, blinky_direction = blinky.move_blinky()
-        else:
-            blinky_x, blinky_y, blinky_direction = blinky.move_clyde()
+    # if moving:
+        # player_x, player_y = move_player(player_x, player_y)
+        # if not blinky_dead and not blinky.in_box:
+        #     blinky_x, blinky_y, blinky_direction = blinky.move_blinky()
+        # else:
+        #     blinky_x, blinky_y, blinky_direction = blinky.move_clyde()
         
-        if not pinky_dead and not pinky.in_box:
-            pinky_x, pinky_y, pinky_direction = pinky.move_pinky()
-        else:
-            pinky_x, pinky_y, pinky_direction = pinky.move_clyde()
+        # if not pinky_dead and not pinky.in_box:
+        #     pinky_x, pinky_y, pinky_direction = pinky.move_pinky()
+        # else:
+        #     pinky_x, pinky_y, pinky_direction = pinky.move_clyde()
         
-        if not inky_dead and not inky.in_box:
-            inky_x, inky_y, inky_direction = inky.move_inky()
-        else:
-            inky_x, inky_y, inky_direction = inky.move_clyde()
+        # if not inky_dead and not inky.in_box:
+        #     inky_x, inky_y, inky_direction = inky.move_inky()
+        # else:
+        #     inky_x, inky_y, inky_direction = inky.move_clyde()
         
-        clyde_x, clyde_y, clyde_direction = clyde.move_clyde()
+        # clyde_x, clyde_y, clyde_direction = clyde.move_clyde()
         
     score, powerup, power_counter, eaten_ghost = check_collisions(score, powerup, power_counter, eaten_ghost)
     
