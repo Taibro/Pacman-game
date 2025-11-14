@@ -9,7 +9,8 @@ class Pacman(Entity):
         Entity.__init__(self, node)
         self.name = PACMAN
         self.directions = {STOP: Vector2(), UP: Vector2(0, -1), DOWN: Vector2(0, 1), LEFT: Vector2(-1, 0), RIGHT: Vector2(1, 0)}
-        self.direction = STOP
+        self.direction = RIGHT
+        self.setBetweenNodes(RIGHT)
         self.speed = 100 * TILEWIDTH/16
         self.radius = 10
         self.color = YELLOW
@@ -54,11 +55,19 @@ class Pacman(Entity):
         
     def eatPellets(self, pelletList):
         for pellet in pelletList:
-            d = self.position - pellet.position
-            dSquared = d.magnitudeSquared()
-            rSquared = (pellet.radius + self.collideRadius) ** 2
-            if dSquared <= rSquared:
+            if self.collideCheck(pellet):
                 return pellet
         return None
+    
+    def collideGhost(self, ghost):
+        return self.collideCheck(ghost)
+    
+    def collideCheck(self, other):
+        d = self.position - other.position
+        dSquared = d.magnitudeSquared()
+        rSquared = (self.collideRadius + other.collideRadius)
+        if dSquared <= rSquared:
+            return True
+        return False
     
     

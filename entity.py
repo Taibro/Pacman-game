@@ -14,13 +14,17 @@ class Entity(object):
         self.radius = 10
         self.collideRadius = 5
         self.color = WHITE
-        self.node = node
-        self.setPosition()
-        self.target = node
         self.visible = True
         self.disablePortal = False
         self.goal = None
         self.directionMethod = self.randomDirection
+        self.setStartNode(node)
+        
+    def setStartNode(self, node):
+        self.node = node
+        self.startNode = node
+        self.target = node
+        self.setPosition()
         
     def setPosition(self):
         self.position = self.node.position.copy()
@@ -103,3 +107,8 @@ class Entity(object):
             distances.append(vec.magnitudeSquared())
         index = distances.index(min(distances))
         return directions[index]
+    
+    def setBetweenNodes(self, direction):
+        if self.node.neighbors[direction] is not None:
+            self.target = self.node.neighbors[direction]
+            self.position = (self.node.position + self.target.position) / 2.0
