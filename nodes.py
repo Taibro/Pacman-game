@@ -7,6 +7,10 @@ class Node(object):
     def __init__(self, x, y):
         self.position = Vector2(x, y)
         self.neighbors = {UP: None, DOWN: None, LEFT: None, RIGHT: None, PORTAL:None}
+        self.access = {UP:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT],
+                       DOWN:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT], 
+                       LEFT:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT],
+                       RIGHT:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT]}
     
     def render(self, screen):
         for n in self.neighbors.keys():
@@ -15,6 +19,14 @@ class Node(object):
                 line_end = self.neighbors[n].position.asTuple()
                 pygame.draw.line(screen, WHITE, line_start, line_end, 4)
                 pygame.draw.circle(screen, RED, self.position.asInt(), 12)
+                
+    def denyAccess(self, direction, entity):
+        if entity.name in self.access[direction]:
+            self.access[direction].remove(entity.name)
+            
+    def allowAccess(self, direction, entity):
+        if entity.name not in self.access[direction]:
+            self.access[direction].append(entity.name)
                 
 class NodeGroup(object):
     def __init__(self, level):
@@ -115,4 +127,34 @@ class NodeGroup(object):
         self.nodesLUT[homekey].neighbors[direction] = self.nodesLUT[key]
         self.nodesLUT[key].neighbors[direction * -1] = self.nodesLUT[homekey]
         
-    
+    def denyAccess(self, col, row, direction, entity):
+        node = self.getNodeFromTiles(col, row)
+        if node is not None:
+            node.denyAccess(direction, entity)
+            
+    def allowAccess(self, col, row, direction, entity):
+        node = self.getNodeFromTiles(col, row)
+        if node is not None:
+            node.allowAccess(direction, entity)
+            
+    def denyAccessList(self, col, row, direction, entities):
+        for entity in entities:
+            self.denyAccess(col, row, direction, entity)
+            
+    def allowAccessList(self, col, row, direction, entities):
+        for entity in entities:
+            self.allowAccess(col, row, direction, entity)
+            
+    def denyHomeAccess(self, entity):
+        self.nodesLUT[self.homekey].denyAccess(DOWN, entity)
+        
+    def allowHomeAccess(self, entity):
+        self.nodesLUT[self.homekey].allowAccess(DOWN, entity)
+        
+    def denyHomeAccessList(self, entities):
+        for entity in entities:
+            self.denyHomeAccess(entity)
+            
+    def allowHomeAccessList(self, entities):
+        for entity in entities:
+            self.allowHomeAccess(entity)
