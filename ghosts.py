@@ -5,6 +5,133 @@ from constants import *
 from entity import Entity
 from modes import ModeController
 from sprites import GhostSprites
+import heapq
+from collections import deque
+
+# --- CÁC THUẬT TOÁN TÌM ĐƯỜNG ---
+
+def heuristic(node_a, node_b):
+    # Sử dụng khoảng cách Manhattan cho lưới vuông
+    (x1, y1) = node_a.position.asTuple()
+    (x2, y2) = node_b.position.asTuple()
+    return abs(x1 - x2) + abs(y1 - y2)
+
+def get_direction_from_path(start_node, next_node):
+    # Xác định hướng đi dựa trên node hiện tại và node tiếp theo trong đường đi
+    diff = next_node.position - start_node.position
+    if diff.x > 0: return RIGHT
+    if diff.x < 0: return LEFT
+    if diff.y > 0: return DOWN
+    if diff.y < 0: return UP
+    return STOP
+
+def algo_bfs(start_node, target_node, grid_access_check_entity=None):
+    queue = deque([(start_node, [start_node])])
+    visited = set([start_node])
+
+    while queue:
+        (current, path) = queue.popleft()
+        print('bfs ',current)
+        if current == target_node:
+            return path
+        
+        for direction, neighbor in current.neighbors.items():
+            # Bỏ qua PORTAL để tránh lỗi KeyError và lỗi di chuyển xuyên map
+            if direction == PORTAL:
+                continue
+
+            # Kiểm tra xem hướng đó có đi được không
+            can_move = True
+            if grid_access_check_entity:
+                if direction in current.access and grid_access_check_entity.name in current.access[direction]:
+                     pass
+                else:
+                    can_move = False
+            
+            if neighbor and neighbor not in visited and can_move:
+                visited.add(neighbor)
+                queue.append((neighbor, path + [neighbor]))
+    return []
+
+def algo_dfs(start_node, target_node, grid_access_check_entity=None):
+    stack = [(start_node, [start_node])]
+    visited = set([start_node])
+
+    while stack:
+        (current, path) = stack.pop()
+        print('dfs ', current)
+        if current == target_node:
+            return path
+        
+        neighbors_list = []
+        for direction, neighbor in current.neighbors.items():
+             # Bỏ qua PORTAL
+             if direction == PORTAL:
+                 continue
+
+             can_move = True
+             if grid_access_check_entity and neighbor:
+                # Kiểm tra access an toàn hơn
+                if direction in current.access:
+                    if grid_access_check_entity.name not in current.access[direction]:
+                        can_move = False
+                else:
+                    can_move = False # Nếu không có key trong access thì coi như không đi được
+
+             if neighbor and can_move:
+                 neighbors_list.append(neighbor)
+        
+        for neighbor in neighbors_list:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                stack.append((neighbor, path + [neighbor]))
+    return []
+
+def algo_astar(start_node, target_node, grid_access_check_entity=None):
+    frontier = []
+    heapq.heappush(frontier, (0, id(start_node), start_node))
+    came_from = {start_node: None}
+    cost_so_far = {start_node: 0}
+
+    while frontier:
+        _, _, current = heapq.heappop(frontier)
+        print('a* ',current)
+        if current == target_node:
+            break
+
+        for direction, neighbor in current.neighbors.items():
+            # Bỏ qua PORTAL
+            if direction == PORTAL:
+                continue
+
+            can_move = True
+            if grid_access_check_entity and neighbor:
+                if direction in current.access:
+                    if grid_access_check_entity.name not in current.access[direction]:
+                        can_move = False
+                else:
+                    can_move = False
+
+            if neighbor and can_move:
+                new_cost = cost_so_far[current] + 1
+                if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                    cost_so_far[neighbor] = new_cost
+                    priority = new_cost + heuristic(neighbor, target_node)
+                    heapq.heappush(frontier, (priority, id(neighbor), neighbor))
+                    came_from[neighbor] = current
+    
+    if target_node not in came_from:
+        return []
+    
+    path = []
+    curr = target_node
+    while curr != start_node:
+        path.append(curr)
+        curr = came_from[curr]
+    path.reverse()
+    return [start_node] + path
+
+# --- GHOST CLASSES ---
 
 class Ghost(Entity):
     def __init__(self, node, pacman=None, blinky=None):
@@ -12,11 +139,12 @@ class Ghost(Entity):
         self.name = GHOST
         self.points = 200
         self.goal = Vector2()
-        #self.directionMethod = self.goalDirection
         self.pacman = pacman
         self.mode = ModeController(self)
         self.blinky = blinky
         self.homeNode = node
+        self.use_algorithm = False
+        self.algorithm_type = None 
         
     def update(self, dt):
         self.sprites.update(dt)
@@ -41,7 +169,10 @@ class Ghost(Entity):
             
     def normalMode(self):
         self.setSpeed(100)
-        self.directionMethod = self.goalDirection
+        if self.use_algorithm:
+            self.directionMethod = self.algoDirection
+        else:
+            self.directionMethod = self.goalDirection
         self.homeNode.denyAccess(DOWN, self)
         
     def spawn(self):
@@ -60,8 +191,30 @@ class Ghost(Entity):
     def reset(self):
         Entity.reset(self)
         self.points = 200
+        self.use_algorithm = False
         self.directionMethod = self.goalDirection
 
+    def algoDirection(self, directions):
+        if not self.pacman or not self.node:
+            return self.randomDirection(directions)
+
+        target_node = self.pacman.node
+        path = []
+        
+        if self.algorithm_type == 'A*':
+            path = algo_astar(self.node, target_node, self)
+        elif self.algorithm_type == 'BFS':
+            path = algo_bfs(self.node, target_node, self)
+        elif self.algorithm_type == 'DFS':
+            path = algo_dfs(self.node, target_node, self)
+            
+        if len(path) > 1:
+            next_node = path[1]
+            new_dir = get_direction_from_path(self.node, next_node)
+            if new_dir in directions:
+                return new_dir
+            
+        return self.goalDirection(directions)
 
 class Blinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
@@ -69,6 +222,7 @@ class Blinky(Ghost):
         self.name = BLINKY
         self.color = RED
         self.sprites = GhostSprites(self)
+        self.algorithm_type = 'A*'
         
 class Pinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
@@ -76,6 +230,7 @@ class Pinky(Ghost):
         self.name = PINKY
         self.color = PINK
         self.sprites = GhostSprites(self)
+        self.algorithm_type = 'DFS'
         
     def scatter(self):
         self.goal = Vector2(TILEWIDTH * NCOLS, 0)
@@ -89,6 +244,7 @@ class Inky(Ghost):
         self.name = INKY
         self.color = TEAL
         self.sprites = GhostSprites(self)
+        self.algorithm_type = 'A*'
         
     def scatter(self):
         self.goal = Vector2(TILEWIDTH * NCOLS, TILEHEIGHT * NROWS)
@@ -104,6 +260,7 @@ class Clyde(Ghost):
         self.name = CLYDE
         self.color = ORANGE
         self.sprites = GhostSprites(self)
+        self.algorithm_type = 'BFS'
         
     def scatter(self):
         self.goal = Vector2(0, TILEHEIGHT * NROWS)
@@ -163,3 +320,15 @@ class GhostGroup(object):
     def reset(self):
         for ghost in self:
             ghost.reset()
+            
+    def trigger_ai_chase(self, home_node):
+        for ghost in self:
+            ghost.position = home_node.position.copy()
+            ghost.node = home_node
+            ghost.target = home_node
+            ghost.direction = STOP
+            ghost.visible = True
+            ghost.use_algorithm = True
+            ghost.directionMethod = ghost.algoDirection
+            ghost.mode.current = CHASE
+            ghost.setSpeed(100)

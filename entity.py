@@ -21,6 +21,7 @@ class Entity(object):
         self.setStartNode(node)
         self.image = None
         
+        
     def setStartNode(self, node):
         self.node = node
         self.startNode = node
@@ -29,12 +30,6 @@ class Entity(object):
         
     def setPosition(self):
         self.position = self.node.position.copy()
-        
-    def validDirection(self, direction):
-        if direction is not STOP:
-            if self.node.neighbors[direction] is not None:
-                return True
-        return False
     
     def getNewTarget(self, direction):
         if self.validDirection(direction):
@@ -75,6 +70,14 @@ class Entity(object):
                 p = self.position.asInt()
                 pygame.draw.circle(screen, self.color, p, self.radius)
             
+    def goalDirection(self, directions):
+        distances = []
+        for direction in directions:
+            vec = self.node.position + self.directions[direction] * TILEWIDTH - self.goal
+            distances.append(vec.magnitudeSquared())
+        index = distances.index(min(distances))
+        return directions[index]
+            
     def update(self, dt):
         self.position += self.directions[self.direction] * self.speed * dt
         
@@ -103,16 +106,15 @@ class Entity(object):
             directions.append(self.direction * -1)
         return directions
     
+    def validDirection(self, direction):
+        if direction is not STOP:
+            if self.name in self.node.access[direction]:
+                if self.node.neighbors[direction] is not None:
+                    return True
+        return False
+    
     def randomDirection(self, directions):
         return directions[randint(0, len(directions) - 1)]
-    
-    def goalDirection(self, directions):
-        distances = []
-        for direction in directions:
-            vec = self.node.position + self.directions[direction] * TILEWIDTH - self.goal
-            distances.append(vec.magnitudeSquared())
-        index = distances.index(min(distances))
-        return directions[index]
     
     def setBetweenNodes(self, direction):
         if self.node.neighbors[direction] is not None:
@@ -124,10 +126,9 @@ class Entity(object):
         self.direction = STOP
         self.speed = 100
         self.visible = True
-        
-    def validDirection(self, direction):
-        if direction is not STOP:
-            if self.name in self.node.access[direction]:
-                if self.node.neighbors[direction] is not None:
-                    return True
-        return False
+
+    # def validDirection(self, direction):
+    #     if direction is not STOP:
+    #         if self.node.neighbors[direction] is not None:
+    #             return True
+    #     return False

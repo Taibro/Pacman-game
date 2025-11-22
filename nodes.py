@@ -6,6 +6,8 @@ import numpy as np
 class Node(object):
     def __init__(self, x, y):
         self.position = Vector2(x, y)
+        self.x = x
+        self.y = y
         self.neighbors = {UP: None, DOWN: None, LEFT: None, RIGHT: None, PORTAL:None}
         self.access = {UP:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT],
                        DOWN:[PACMAN, BLINKY, INKY, CLYDE, PINKY, FRUIT], 
@@ -27,6 +29,9 @@ class Node(object):
     def allowAccess(self, direction, entity):
         if entity.name not in self.access[direction]:
             self.access[direction].append(entity.name)
+            
+    def __str__(self):
+        return f"{self.x} , {self.y}"
                 
 class NodeGroup(object):
     def __init__(self, level):
