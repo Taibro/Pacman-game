@@ -102,22 +102,24 @@ class GameController(object):
         self.render()
     
     # Logic xử lý kích hoạt AI
-    def triggerAI(self):
-        # Lấy vị trí spawn (thường ở giữa nhà ma, offset 2,3 như trong startGame)
+    def triggerAI(self, algo_type=None): 
         spawn_node = self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3))
         
         # Gọi hàm setup trong GhostGroup
-        self.ghosts.trigger_ai_chase(spawn_node)
+        self.ghosts.trigger_ai_chase(spawn_node, algo_type)
         
-        # QUAN TRỌNG: Cho phép tất cả ma đi qua cửa nhà (hướng DOWN từ nhà ma hoặc UP từ ngoài vào)
-        # Để đơn giản, ta cho phép truy cập vào Home Nodes
         self.nodes.allowHomeAccessList(self.ghosts)
         
-        # Bỏ pause nếu đang pause (để thấy ngay hiệu ứng)
         if self.pause.paused:
-             self.pause.setPause(playerPaused=True) # Toggle pause off
+             self.pause.setPause(playerPaused=True)
              self.textGroup.hideText()
              self.showEntities()
+        
+        # In thông báo để biết đang chạy chế độ nào
+        if algo_type:
+            print(f"Đã kích hoạt AI đồng bộ: {algo_type}")
+        else:
+            print("Đã kích hoạt AI hỗn hợp (Mặc định của từng ma)")
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -137,6 +139,12 @@ class GameController(object):
                     # --- THÊM SỰ KIỆN PHÍM 'S' TẠI ĐÂY ---
                     elif event.key == K_s:
                         self.triggerAI()
+                    elif event.key == K_a:
+                        self.triggerAI('A*') # Nhấn A chạy A*
+                    elif event.key == K_d:
+                        self.triggerAI('DFS') # Nhấn D chạy DFS
+                    elif event.key == K_b:
+                        self.triggerAI('BFS') # Nhấn B chạy BFS
                 else:
                     if event.key == K_RETURN:
                         self.startGame()

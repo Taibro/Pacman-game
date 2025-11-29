@@ -7,6 +7,7 @@ from modes import ModeController
 from sprites import GhostSprites
 import heapq
 from collections import deque
+import random
 
 # --- CÁC THUẬT TOÁN TÌM ĐƯỜNG ---
 
@@ -87,7 +88,7 @@ def algo_dfs(start_node, target_node, grid_access_check_entity=None):
                 stack.append((neighbor, path + [neighbor]))
     return []
 
-def algo_astar(start_node, target_node, grid_access_check_entity=None):
+def algo_astar(start_node, target_node, grid_access_check_entity=None,randomness=0):
     frontier = []
     heapq.heappush(frontier, (0, id(start_node), start_node))
     came_from = {start_node: None}
@@ -113,7 +114,8 @@ def algo_astar(start_node, target_node, grid_access_check_entity=None):
                     can_move = False
 
             if neighbor and can_move:
-                new_cost = cost_so_far[current] + 1
+                added_cost = 1 + random.uniform(0, randomness)
+                new_cost = cost_so_far[current] + added_cost
                 if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
                     cost_so_far[neighbor] = new_cost
                     priority = new_cost + heuristic(neighbor, target_node)
@@ -145,6 +147,7 @@ class Ghost(Entity):
         self.homeNode = node
         self.use_algorithm = False
         self.algorithm_type = None 
+        self.astar_randomness = 0
         
     def update(self, dt):
         self.sprites.update(dt)
@@ -202,7 +205,7 @@ class Ghost(Entity):
         path = []
         
         if self.algorithm_type == 'A*':
-            path = algo_astar(self.node, target_node, self)
+            path = algo_astar(self.node, target_node, self,self.astar_randomness)
         elif self.algorithm_type == 'BFS':
             path = algo_bfs(self.node, target_node, self)
         elif self.algorithm_type == 'DFS':
@@ -223,6 +226,7 @@ class Blinky(Ghost):
         self.color = RED
         self.sprites = GhostSprites(self)
         self.algorithm_type = 'A*'
+        self.astar_randomness = 0.5
         
 class Pinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
@@ -245,6 +249,7 @@ class Inky(Ghost):
         self.color = TEAL
         self.sprites = GhostSprites(self)
         self.algorithm_type = 'A*'
+        self.astar_randomness = 5.0
         
     def scatter(self):
         self.goal = Vector2(TILEWIDTH * NCOLS, TILEHEIGHT * NROWS)
@@ -321,7 +326,7 @@ class GhostGroup(object):
         for ghost in self:
             ghost.reset()
             
-    def trigger_ai_chase(self, home_node):
+    def trigger_ai_chase(self, home_node, algo_type=None): 
         for ghost in self:
             ghost.position = home_node.position.copy()
             ghost.node = home_node
@@ -329,6 +334,11 @@ class GhostGroup(object):
             ghost.direction = STOP
             ghost.visible = True
             ghost.use_algorithm = True
+          
+            if algo_type is not None:
+                ghost.algorithm_type = algo_type
+            # ----------------------
+            
             ghost.directionMethod = ghost.algoDirection
             ghost.mode.current = CHASE
             ghost.setSpeed(100)
