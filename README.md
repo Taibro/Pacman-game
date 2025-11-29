@@ -9,7 +9,7 @@
 ![Blinky and Inky](./ghost.jpg)
  
  - Press enter to get into the game
- - Press space to play
+ - Press space to play normal mode
  - Press s to start game using algorithm
  - Press a to run ghost by a*
  - Press d to run ghost by dfs
